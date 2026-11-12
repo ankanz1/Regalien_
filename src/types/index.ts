@@ -8,6 +8,7 @@ export type ProjectCategory =
 
 export interface Project {
   id: string;
+  slug?: string;
   title: string;
   category: Exclude<ProjectCategory, 'All'>;
   location: string;
@@ -19,6 +20,7 @@ export interface Project {
   features: string[];
   coverImage: string;
   gallery: string[];
+  videos?: string[];
   featured: boolean;
   published?: boolean; // Controls public portfolio visibility
   completionWeeks: number;
@@ -46,6 +48,10 @@ export interface TaskItem {
   priority: 'High' | 'Medium' | 'Low';
   completed: boolean;
   relatedProject?: string;
+  description?: string;
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  assignedTo?: string;
+  relatedProjectId?: string;
 }
 
 export interface SupabaseConfig {
@@ -53,6 +59,17 @@ export interface SupabaseConfig {
   anonKey: string;
   bucketName: string;
   connected: boolean;
+}
+
+export type AdminRole = 'super_admin' | 'admin' | 'project_manager' | 'enquiry_manager' | 'content_manager';
+
+export interface AdminProfile {
+  userId: string;
+  role: AdminRole | null;
+  isActive: boolean;
+  isAuthorized: boolean;
+  displayName?: string;
+  designation?: string;
 }
 
 export interface Testimonial {

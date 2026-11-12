@@ -32,6 +32,11 @@ export const TestimonialsSection: React.FC = () => {
           <TestimonialsSkeleton count={3} />
         ) : (
           <div className="stagger-cards-container grid grid-cols-1 md:grid-cols-3 gap-8">
+          {testimonials.length === 0 && (
+            <div className="md:col-span-3 p-8 bg-white border border-[#111111]/10 text-sm text-[#111111]/65">
+              No approved testimonials are available yet.
+            </div>
+          )}
           {testimonials.map((t) => (
             <div
               key={t.id}

@@ -77,9 +77,11 @@ type TabType =
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandalonePage = false }) => {
   const {
-    projects,
+    adminProjects: projects,
     addProject,
     updateProject,
+    uploadProjectAsset,
+    deleteProjectAsset,
     deleteProject,
     toggleProjectPublish,
     inquiries,
@@ -110,8 +112,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
     resetToDefaults,
     adminTheme,
     toggleAdminTheme,
-    setActiveEmailNotice,
     setIsAdminOpen,
+    dataError,
+    signOut,
+    adminProfile,
+    updateAdminProfile,
   } = useApp();
 
   const navigate = useNavigate();
@@ -138,6 +143,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
   const [isCreatingTestimonial, setIsCreatingTestimonial] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isCreatingInquiry, setIsCreatingInquiry] = useState(false);
+  const [storageProjectId, setStorageProjectId] = useState('');
+  const [storageUploadError, setStorageUploadError] = useState('');
+  const [storageUploading, setStorageUploading] = useState(false);
 
   // Close Admin on Escape key if no inner modal is open
   useEffect(() => {
@@ -173,13 +181,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
   // Email Notification Sandbox State
   const [emailForm, setEmailForm] = useState({
     template: 'inquiry_ack',
-    recipientName: 'Arindam Mukherjee',
-    recipientEmail: 'arindam@example.com',
+    recipientName: '',
+    recipientEmail: '',
     subject: 'Regalien Interior — Project Consultation & Studio Reservation',
-    projectScope: 'Duplex Penthouse 5,400 sq.ft, Newtown Kolkata',
-    customNote: 'Our principal architect has reviewed your architectural requirements and prepared preliminary Italian marble samples for your review.',
+    projectScope: '',
+    customNote: '',
   });
-  const [emailSentToast, setEmailSentToast] = useState(false);
+  const [emailDispatchError, setEmailDispatchError] = useState('');
+  const [adminDisplayName, setAdminDisplayName] = useState('');
+  const [adminDesignation, setAdminDesignation] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  useEffect(() => {
+    setAdminDisplayName(adminProfile?.displayName || '');
+    setAdminDesignation(adminProfile?.designation || '');
+  }, [adminProfile?.displayName, adminProfile?.designation]);
 
   // New Project Form State
   const [projectForm, setProjectForm] = useState<{
@@ -211,18 +227,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
     description: '',
     materials: 'Italian Marble, Slatted Oak, Burnished Brass, Bouclé Fabric',
     features: 'Acoustic Ceilings, Architectural Lighting, Motorized Hardware, Custom Joinery',
-    coverImage: '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg',
-    gallery: '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg\n/src/assets/images/hero_luxury_interior_1794294899489.jpg',
+    coverImage: projects[0]?.coverImage || '',
+    gallery: projects[0]?.gallery.join('\n') || '',
     featured: true,
     published: true,
     completionWeeks: 14,
     beforeLabel: 'Bare Shell Handover',
     afterLabel: 'Regalien Turnkey Finish',
-    beforeImage: '/src/assets/images/hero_luxury_interior_1794294899489.jpg',
-    afterImage: '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg',
+    beforeImage: '',
+    afterImage: '',
   });
 
-  // Handle local image file upload converting to Data URL / Supabase mock path
+  // Local preview only; persistent media upload requires an authenticated storage policy.
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'cover' | 'gallery' | 'before' | 'after') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -272,7 +288,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
     setIsCreatingProject(true);
   };
 
-  const handleSaveProject = (e: React.FormEvent) => {
+  const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectForm.title.trim()) return;
 
@@ -290,7 +306,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
       description: projectForm.description || 'Bespoke turnkey architecture crafted with imported materials.',
       materials: matList.length > 0 ? matList : ['Italian Marble', 'Fluted Oak'],
       features: featList.length > 0 ? featList : ['Custom Joinery', 'Architectural Lighting'],
-      coverImage: projectForm.coverImage || '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg',
+      coverImage: projectForm.coverImage || projects[0]?.coverImage || '',
       gallery: galleryList.length > 0 ? galleryList : [projectForm.coverImage],
       featured: projectForm.featured,
       published: projectForm.published,
@@ -303,14 +319,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
       } : undefined,
     };
 
-    if (editingProject) {
-      updateProject(editingProject.id, projectPayload);
-    } else {
-      addProject(projectPayload);
+    try {
+      if (editingProject) {
+        await updateProject(editingProject.id, projectPayload);
+      } else {
+        await addProject(projectPayload);
+      }
+      setIsCreatingProject(false);
+      setEditingProject(null);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Unable to save project.');
     }
-
-    setIsCreatingProject(false);
-    setEditingProject(null);
   };
 
   // Metrics Counters
@@ -424,7 +443,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                 </div>
 
                 {item.isComingSoon ? (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-200/50 dark:bg-neutral-800 text-neutral-500">
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#F3EEE3] dark:bg-neutral-800 text-[#111111] dark:text-white">
                     Soon
                   </span>
                 ) : item.badge && item.badge > 0 ? (
@@ -642,10 +661,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
               <X className="w-4 h-4 text-[#D9541E] group-hover:text-white transition-colors" />
               <span>Close</span>
             </button>
+            <button
+              type="button"
+              onClick={() => { void signOut(); }}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-[#D9541E] hover:bg-[#b84214] transition-colors cursor-pointer"
+            >
+              Sign out
+            </button>
 
             {/* Profile Avatar */}
             <div className="w-7 h-7 rounded-full bg-[#8D5B3A] text-white flex items-center justify-center font-bold text-xs select-none">
-              F
+              {(adminProfile?.displayName || 'A').slice(0, 1).toUpperCase()}
             </div>
           </div>
         </header>
@@ -681,7 +707,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#8D5B3A] hover:bg-[#784d30] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ New Client</span>
+                <span>New Client</span>
               </button>
 
               <button
@@ -697,15 +723,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                     description: '',
                     materials: 'Italian Statuario Marble, Smoked Oak, Aged Brass',
                     features: 'Turnkey Civil Execution, Acoustic Paneling, Concealed LED Niches',
-                    coverImage: '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg',
-                    gallery: '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg',
+                    coverImage: projects[0]?.coverImage || '',
+                    gallery: projects[0]?.gallery[0] || '',
                     featured: true,
                     published: true,
                     completionWeeks: 14,
                     beforeLabel: 'Bare Shell Handover',
                     afterLabel: 'Regalien Turnkey Finish',
-                    beforeImage: '/src/assets/images/hero_luxury_interior_1794294899489.jpg',
-                    afterImage: '/src/assets/images/portfolio_penthouse_living_1794294899673.jpg',
+                    beforeImage: '',
+                    afterImage: '',
                   });
                   setIsCreatingProject(true);
                 }}
@@ -716,7 +742,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                 }`}
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ New Project</span>
+                <span>New Project</span>
               </button>
             </div>
           </div>
@@ -963,7 +989,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                             className={`text-[10px] font-mono px-2 py-0.5 rounded shrink-0 ${
                               task.priority === 'High'
                                 ? 'bg-red-500/10 text-red-600'
-                                : 'bg-neutral-200/50 dark:bg-neutral-800 text-neutral-500'
+                                : 'bg-[#F3EEE3] dark:bg-neutral-800 text-[#111111] dark:text-white'
                             }`}
                           >
                             {task.dueDate}
@@ -1112,7 +1138,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-[10px] font-semibold">
+                            <span className={`text-[10px] font-semibold ${themeTextMuted}`}>
                               {proj.category}
                             </span>
                           </td>
@@ -1123,7 +1149,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                           <td className="py-3.5 px-4 max-w-xs">
                             <div className="flex flex-wrap gap-1">
                               {proj.materials.slice(0, 3).map((mat, idx) => (
-                                <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-200/50 dark:bg-neutral-800">
+                                <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-[#F3EEE3] dark:bg-neutral-800 text-[#111111] dark:text-white">
                                   {mat}
                                 </span>
                               ))}
@@ -1496,22 +1522,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
 
                     <button
                       onClick={() => {
-                        setActiveEmailNotice({
-                          to: emailForm.recipientEmail,
-                          recipientName: emailForm.recipientName,
-                          subject: emailForm.subject,
-                          type: 'Inquiry Received',
-                          timestamp: new Date().toLocaleString(),
-                          summary: `Automated branded notification sent for ${emailForm.projectScope}`,
-                          details: {
-                            'Recipient': emailForm.recipientName,
-                            'Project Scope': emailForm.projectScope,
-                            'Studio Location': 'ASR 026 Ground Floor Astra Towers, Newtown Kolkata',
-                            'Helpline': '+91 8981441040',
-                          },
-                        });
-                        setEmailSentToast(true);
-                        setTimeout(() => setEmailSentToast(false), 4000);
+                        setEmailDispatchError(
+                          'Email delivery is not configured. Connect a server-side email provider or Supabase Edge Function before sending.'
+                        );
                       }}
                       className="w-full py-2.5 rounded-xl bg-[#8D5B3A] hover:bg-[#784d30] text-white font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer mt-2"
                     >
@@ -1519,10 +1532,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                       <span>Dispatch Luxury Notification</span>
                     </button>
 
-                    {emailSentToast && (
-                      <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-center font-semibold text-xs flex items-center justify-center gap-1.5 animate-in fade-in">
-                        <Check className="w-4 h-4" />
-                        <span>Notification dispatched & recorded in audit log!</span>
+                    {emailDispatchError && (
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 text-center font-semibold text-xs flex items-center justify-center gap-1.5 animate-in fade-in">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>{emailDispatchError}</span>
                       </div>
                     )}
                   </div>
@@ -1657,9 +1670,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                       Supabase Cloud Storage & Media Bucket
                     </h3>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 text-xs font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Storage Bucket Active
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    supabaseConfig.bucketName ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-700'
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${supabaseConfig.bucketName ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                    {supabaseConfig.bucketName ? 'Bucket configured' : 'Bucket unavailable'}
                   </span>
                 </div>
 
@@ -1678,7 +1693,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                   </div>
                   <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/40">
                     <span className="text-[10px] text-neutral-400 uppercase font-mono block">Public CDN Access</span>
-                    <span className="font-semibold text-emerald-600">Enabled (Global Edge)</span>
+                    <span className="font-semibold text-neutral-500">Requires public bucket policy</span>
                   </div>
                 </div>
 
@@ -1689,21 +1704,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                     <h4 className="text-xs font-bold">Upload High-Res Architectural Renders</h4>
                     <p className="text-[10px] text-neutral-500 mt-0.5">PNG, JPG, WEBP up to 25MB each with automatic CDN optimization</p>
                   </div>
+                  <select
+                    value={storageProjectId}
+                    onChange={(event) => {
+                      setStorageProjectId(event.target.value);
+                      setStorageUploadError('');
+                    }}
+                    className={`w-full max-w-sm p-2.5 rounded-lg border text-left ${themeInput}`}
+                  >
+                    <option value="">Select a saved project</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>{project.title}</option>
+                    ))}
+                  </select>
                   <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#8D5B3A] hover:bg-[#784d30] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors">
                     <Upload className="w-3.5 h-3.5" />
-                    <span>Choose File to Upload</span>
+                    <span>{storageUploading ? 'Uploading…' : 'Choose File to Upload'}</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       className="hidden"
-                      onChange={(e) => {
+                      disabled={storageUploading || !storageProjectId}
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
-                          alert(`Uploaded "${file.name}" to Supabase Storage bucket "${supabaseConfig.bucketName}" successfully!`);
+                        e.target.value = '';
+                        if (!file || !storageProjectId) return;
+                        setStorageUploadError('');
+                        setStorageUploading(true);
+                        try {
+                          await uploadProjectAsset(storageProjectId, file);
+                        } catch (error) {
+                          setStorageUploadError(error instanceof Error ? error.message : 'Unable to upload project media.');
+                        } finally {
+                          setStorageUploading(false);
                         }
                       }}
                     />
                   </label>
+                  {storageUploadError && <p className="text-xs text-red-700">{storageUploadError}</p>}
                 </div>
               </div>
 
@@ -1711,18 +1749,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
               <div className="space-y-3">
                 <h4 className={`font-serif text-base font-bold ${themeHeading}`}>Project Image Assets</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                  {projects.flatMap((p) => [p.coverImage, ...p.gallery]).slice(0, 8).map((img, idx) => (
-                    <div key={idx} className="group relative aspect-4/3 rounded-xl overflow-hidden shadow-xs border border-inherit">
-                      <img src={img} alt="Project asset" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  {projects.flatMap((project) => [project.coverImage, ...project.gallery]
+                    .filter((image, index, images) => image && images.indexOf(image) === index)
+                    .map((image) => ({ project, image }))).slice(0, 8).map(({ project, image }) => (
+                    <div key={`${project.id}-${image}`} className="group relative aspect-4/3 rounded-xl overflow-hidden shadow-xs border border-inherit">
+                      <img src={image} alt={`${project.title} asset`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <a
-                          href={img}
+                          href={image}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1.5 rounded-full bg-white text-neutral-900"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
+                        <button
+                          type="button"
+                          title="Delete uploaded media"
+                          onClick={() => {
+                            if (!window.confirm(`Delete this asset from ${project.title}?`)) return;
+                            void deleteProjectAsset(project.id, image).catch((error) => {
+                              setStorageUploadError(error instanceof Error ? error.message : 'Unable to delete project media.');
+                            });
+                          }}
+                          className="p-1.5 rounded-full bg-white text-red-600"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1892,6 +1945,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
           {activeTab === 'settings' && (
             <div className="space-y-6">
               <div className={`p-6 rounded-2xl border ${themeCard} space-y-4`}>
+                <h3 className={`font-serif text-lg font-bold ${themeHeading}`}>Administrator Profile</h3>
+                <p className={`text-xs ${themeTextMuted}`}>Your authentication email remains managed by Supabase Auth.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <label>
+                    <span className="font-semibold block mb-1">Display name</span>
+                    <input value={adminDisplayName} onChange={(e) => setAdminDisplayName(e.target.value)} placeholder="e.g. Rahul" className={`w-full p-2 rounded-lg border ${themeInput}`} />
+                  </label>
+                  <label>
+                    <span className="font-semibold block mb-1">Designation</span>
+                    <input value={adminDesignation} onChange={(e) => setAdminDesignation(e.target.value)} placeholder="e.g. Senior Designer, Rahul" className={`w-full p-2 rounded-lg border ${themeInput}`} />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  disabled={profileSaving}
+                  onClick={async () => {
+                    setProfileSaving(true);
+                    try {
+                      await updateAdminProfile(adminDisplayName, adminDesignation);
+                    } catch (error) {
+                      window.alert(error instanceof Error ? error.message : 'Unable to save administrator profile.');
+                    } finally {
+                      setProfileSaving(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[#8D5B3A] hover:bg-[#784d30] disabled:opacity-50 text-white text-xs font-semibold"
+                >
+                  {profileSaving ? 'Saving…' : 'Save Profile'}
+                </button>
+              </div>
+              <div className={`p-6 rounded-2xl border ${themeCard} space-y-4`}>
                 <h3 className={`font-serif text-lg font-bold ${themeHeading}`}>Studio Contact & Brand Settings</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
@@ -1960,23 +2044,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                 </div>
               </div>
 
-              {/* Data Management & Factory Reset */}
+              {/* Data Management */}
               <div className={`p-6 rounded-2xl border ${themeCard} space-y-3`}>
-                <h4 className="font-serif text-base font-bold text-red-600">Danger Zone & Database Reset</h4>
+                <h4 className="font-serif text-base font-bold">Database Connection</h4>
                 <p className="text-xs text-neutral-500">
-                  Reset demo database back to default factory settings with all initial projects and inquiries.
+                  Data is managed in Supabase. Refreshing never creates or restores local records.
                 </p>
                 <button
                   onClick={() => {
-                    if (window.confirm('Reset all demo data back to default factory state?')) {
-                      resetToDefaults();
-                      alert('Data reset successfully.');
-                    }
+                    resetToDefaults();
                   }}
-                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-[#111111] hover:bg-[#D9541E] text-white text-xs font-semibold transition-colors cursor-pointer"
                 >
-                  Reset Factory Defaults
+                  Refresh Database
                 </button>
+                {dataError && <p className="text-xs text-red-700">{dataError}</p>}
               </div>
             </div>
           )}
@@ -2101,7 +2183,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                     value={projectForm.coverImage}
                     onChange={(e) => setProjectForm({ ...projectForm, coverImage: e.target.value })}
                     className={`flex-1 p-2 rounded-lg border ${themeInput}`}
-                    placeholder="/src/assets/images/... or https://..."
+                    placeholder="/Project Name/photo.jpg or https://..."
                   />
                   <label className="px-3 py-2 rounded-lg bg-[#8D5B3A] text-white font-semibold cursor-pointer shrink-0">
                     <Upload className="w-3.5 h-3.5 inline mr-1" />
@@ -2167,7 +2249,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
             </div>
 
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.target as HTMLFormElement;
                 const fd = new FormData(form);
@@ -2244,17 +2326,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
               </button>
             </div>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.target as HTMLFormElement;
                 const fd = new FormData(form);
-                addTask({
-                  title: fd.get('title') as string,
-                  dueDate: fd.get('dueDate') as string,
-                  priority: (fd.get('priority') as any) || 'Medium',
-                  relatedProject: fd.get('project') as string,
-                });
-                setIsCreatingTask(false);
+                try {
+                  await addTask({
+                    title: fd.get('title') as string,
+                    dueDate: fd.get('dueDate') as string,
+                    priority: (fd.get('priority') as any) || 'Medium',
+                    relatedProject: fd.get('project') as string,
+                  });
+                  setIsCreatingTask(false);
+                } catch (error) {
+                  window.alert(error instanceof Error ? error.message : 'Unable to create task.');
+                }
               }}
               className="space-y-3 text-xs"
             >
@@ -2275,6 +2361,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                     <option value="Low">Low</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Related Project</label>
+                <select name="project" defaultValue="" className={`w-full p-2 rounded-lg border ${themeInput}`}>
+                  <option value="">No related project</option>
+                  {projects.filter((project) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(project.id)).map((project) => (
+                    <option key={project.id} value={project.id}>{project.title}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-neutral-500 mt-1">Only database projects can be linked to a task.</p>
               </div>
               <button type="submit" className="w-full py-2.5 rounded-lg bg-[#8D5B3A] text-white font-semibold cursor-pointer">
                 Create Task
@@ -2297,7 +2393,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
               </button>
             </div>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.target as HTMLFormElement;
                 const fd = new FormData(form);
@@ -2306,12 +2402,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, isStandaloneP
                 const cat = (fd.get('category') as any) || 'Turnkey Execution';
                 const hl = fd.get('highlight') as string;
 
-                if (editingFaq) {
-                  updateFaq(editingFaq.id, { question: q, answer: a, category: cat, highlight: hl });
-                } else {
-                  addFaq({ question: q, answer: a, category: cat, highlight: hl });
+                try {
+                  if (editingFaq) {
+                    await updateFaq(editingFaq.id, { question: q, answer: a, category: cat, highlight: hl });
+                  } else {
+                    await addFaq({ question: q, answer: a, category: cat, highlight: hl });
+                  }
+                  setIsCreatingFaq(false);
+                } catch (error) {
+                  window.alert(error instanceof Error ? error.message : 'Unable to save FAQ.');
                 }
-                setIsCreatingFaq(false);
               }}
               className="space-y-3 text-xs"
             >

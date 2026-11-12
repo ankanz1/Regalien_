@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useApp } from '../context/AppContext';
 import { Project } from '../types';
 import { BeforeAfterViewer } from './BeforeAfterViewer';
 import { useTransitionNavigation } from './PageTransition';
-import { 
-  X, ChevronLeft, ChevronRight, Maximize2, Minimize2, 
-  Layers, MapPin, Calendar, Clock, CheckCircle2, 
+import {
+  X, ChevronLeft, ChevronRight, Maximize2, Minimize2,
+  Layers, MapPin, Calendar, Clock, CheckCircle2,
   Share2, Check, Sparkles, Building2, SlidersHorizontal
 } from 'lucide-react';
 
@@ -14,6 +15,7 @@ interface FeaturedProjectDetailProps {
 }
 
 export const FeaturedProjectDetail: React.FC<FeaturedProjectDetailProps> = ({ project, onClose }) => {
+  const { setIsOverlayActive } = useApp();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -33,6 +35,7 @@ export const FeaturedProjectDetail: React.FC<FeaturedProjectDetailProps> = ({ pr
   }, [galleryImages.length]);
 
   useEffect(() => {
+    setIsOverlayActive(true);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowRight') handleNextImage();
@@ -43,12 +46,15 @@ export const FeaturedProjectDetail: React.FC<FeaturedProjectDetailProps> = ({ pr
     lenis?.stop();
     document.body.style.overflow = 'hidden';
 
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      setIsOverlayActive(false);
       window.removeEventListener('keydown', handleKeyDown);
       lenis?.start();
       document.body.style.overflow = 'unset';
     };
-  }, [onClose, handleNextImage, handlePrevImage]);
+  }, [onClose, handleNextImage, handlePrevImage, setIsOverlayActive]);
 
   const handleConsultClick = () => {
     onClose();
@@ -206,6 +212,30 @@ export const FeaturedProjectDetail: React.FC<FeaturedProjectDetailProps> = ({ pr
               )}
             </div>
           </div>
+
+          {project.videos && project.videos.length > 0 && (
+            <div className="p-6 sm:p-10 bg-[#111111] text-white border-t border-white/10">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60 mb-4">
+                <span className="w-1.5 h-1.5 bg-[#D9541E]" />
+                <span>Project Videos</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {project.videos.map((video) => (
+                  <video
+                    key={video}
+                    className="w-full aspect-video bg-black object-contain"
+                    controls
+                    preload="metadata"
+                    playsInline
+                    poster={project.coverImage}
+                  >
+                    <source src={video} type="video/mp4" />
+                    Your browser does not support project video playback.
+                  </video>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Lower Section: Material Specifications & Architectural Dossier */}
           <div className="p-6 sm:p-10 space-y-10">

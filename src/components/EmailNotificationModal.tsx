@@ -3,10 +3,16 @@ import { useApp } from '../context/AppContext';
 import { Mail, CheckCircle, X, ExternalLink, Calendar, Copy, Check } from 'lucide-react';
 
 export const EmailNotificationModal: React.FC = () => {
-  const { activeEmailNotice, setActiveEmailNotice, company } = useApp();
+  const { activeEmailNotice, setActiveEmailNotice, company, setIsOverlayActive } = useApp();
   const [copied, setCopied] = React.useState(false);
 
   if (!activeEmailNotice) return null;
+
+  // Set overlay state when modal is visible
+  React.useEffect(() => {
+    setIsOverlayActive(true);
+    return () => setIsOverlayActive(false);
+  }, [setIsOverlayActive]);
 
   const handleCopy = () => {
     const text = `Subject: ${activeEmailNotice.subject}\nTo: ${activeEmailNotice.to}\n\n${activeEmailNotice.summary}\n\n` +

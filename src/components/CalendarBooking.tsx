@@ -83,7 +83,7 @@ export const CalendarBooking: React.FC = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -97,20 +97,23 @@ export const CalendarBooking: React.FC = () => {
       return;
     }
 
-    const newBooking = addBooking({
-      clientName: clientName.trim(),
-      clientEmail: clientEmail.trim(),
-      clientPhone: clientPhone.trim(),
-      consultationType,
-      date: selectedDate,
-      timeSlot: selectedSlot,
-      projectType,
-      estimatedSqFt: Number(estimatedSqFt) || undefined,
-      budget,
-      notes,
-    });
-
-    setConfirmedBooking(newBooking);
+    try {
+      const newBooking = await addBooking({
+        clientName: clientName.trim(),
+        clientEmail: clientEmail.trim(),
+        clientPhone: clientPhone.trim(),
+        consultationType,
+        date: selectedDate,
+        timeSlot: selectedSlot,
+        projectType,
+        estimatedSqFt: Number(estimatedSqFt) || undefined,
+        budget,
+        notes,
+      });
+      setConfirmedBooking(newBooking);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Unable to submit your appointment request.');
+    }
   };
 
   const handleReset = () => {

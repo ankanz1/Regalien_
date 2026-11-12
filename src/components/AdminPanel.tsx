@@ -3,9 +3,9 @@ import { useApp } from '../context/AppContext';
 import { AdminPortal } from './AdminPortal';
 
 export const AdminPanel: React.FC = () => {
-  const { isAdminOpen, setIsAdminOpen } = useApp();
+  const { isAdminOpen, setIsAdminOpen, user, adminProfile } = useApp();
 
-  if (!isAdminOpen) return null;
+  if (!isAdminOpen || !user || !adminProfile?.isAuthorized) return null;
 
   return (
     <div

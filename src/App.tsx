@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useApp } from './context/AppContext';
 import { useLenisScroll } from './hooks/useLenisScroll';
 import { useScrollAnimations } from './hooks/useScrollAnimations';
 import { PageTransitionProvider } from './components/PageTransition';
@@ -21,6 +21,7 @@ import { ReviewsPage } from './pages/ReviewsPage';
 import { FAQPage } from './pages/FAQPage';
 import { StudioLocationPage } from './pages/StudioLocationPage';
 import { AdminPage } from './pages/AdminPage';
+import { AdminLogin } from './components/AdminLogin';
 
 // Shared Global Components
 import { Navbar } from './components/Navbar';
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route path="/reviews" element={<ReviewsPage />} />
         <Route path="/faq" element={<FAQPage />} />
         <Route path="/location" element={<StudioLocationPage />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -55,6 +57,7 @@ function AppRoutes() {
 function MainLayout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
+  const { dataError } = useApp();
 
   // Initialize Lenis smooth scroll
   useLenisScroll();
@@ -65,6 +68,7 @@ function MainLayout() {
   if (isAdmin) {
     return (
       <div className="h-screen w-full overflow-hidden font-sans">
+        {dataError && <DataErrorBanner message={dataError} />}
         <AppRoutes />
         <EmailNotificationModal />
       </div>
@@ -73,6 +77,7 @@ function MainLayout() {
 
   return (
     <div className="min-h-screen bg-[#F3EEE3] text-[#111111] flex flex-col font-sans selection:bg-[#D9541E] selection:text-white">
+      {dataError && <DataErrorBanner message={dataError} />}
       {/* Scroll Progress Indicator & Back to Top */}
       <ScrollExperience />
 
@@ -96,6 +101,12 @@ function MainLayout() {
     </div>
   );
 }
+
+const DataErrorBanner: React.FC<{ message: string }> = ({ message }) => (
+  <div role="alert" className="relative z-[60] bg-red-50 px-4 py-2 text-center text-xs text-red-800 border-b border-red-200">
+    {message}
+  </div>
+);
 
 export default function App() {
   return (

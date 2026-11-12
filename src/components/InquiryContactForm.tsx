@@ -19,7 +19,7 @@ export const InquiryContactForm: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -28,20 +28,23 @@ export const InquiryContactForm: React.FC = () => {
       return;
     }
 
-    addInquiry({
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      projectScope,
-      propertyType,
-      estimatedSqFt,
-      location,
-      targetTimeline,
-      budgetRange,
-      message: message.trim(),
-    });
-
-    setSubmitted(true);
+    try {
+      await addInquiry({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        projectScope,
+        propertyType,
+        estimatedSqFt,
+        location,
+        targetTimeline,
+        budgetRange,
+        message: message.trim(),
+      });
+      setSubmitted(true);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Unable to submit your inquiry.');
+    }
   };
 
   const handleReset = () => {

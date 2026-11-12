@@ -126,6 +126,11 @@ export const PortfolioPage: React.FC = () => {
                 </div>
               );
             })}
+            {filteredProjects.length === 0 && (
+              <div className="lg:col-span-12 p-8 bg-white border border-[#111111]/10 text-sm text-[#111111]/65">
+                No published projects are available yet.
+              </div>
+            )}
           </div>
         )}
 

@@ -240,20 +240,19 @@ Kindly let me know how we can proceed. Thank you!`,
         aria-label="Open WhatsApp inquiry options"
         aria-expanded={showOptions}
       >
-        {/* Subtle Radar Ripple Glow */}
-        <span className="absolute -inset-1 rounded-full bg-[#25D366] opacity-35 animate-ping pointer-events-none" />
+        {/* Subtle Pulse Indicator - only visible when options are open */}
+        {showOptions && (
+          <span className="absolute -inset-1 rounded-full bg-[#25D366] opacity-30 animate-pulse" />
+        )}
 
-        {/* WhatsApp Icon */}
-        <img
-          src="/whatsapp-floating.png"
-          alt="WhatsApp"
-          className="relative z-10 w-7 h-7 object-contain drop-shadow-sm"
-        />
-
-        {/* Active Status Dot */}
-        <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center">
-          <span className="w-2 h-2 rounded-full bg-[#25D366]" />
-        </span>
+        {/* WhatsApp Icon (MessageCircle with status indicator) */}
+        <div className="relative z-10">
+          <MessageCircle className="w-6 h-6" />
+          {/* Online Status Check - only shows when button is active */}
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#25D366]" />
+          </span>
+        </div>
       </button>
     </div>
   );

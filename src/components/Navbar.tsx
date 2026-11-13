@@ -111,14 +111,11 @@ export const Navbar: React.FC = () => {
                 type="button"
                 onClick={() => handleNavClick('/')}
                 className="flex flex-col text-left group cursor-pointer focus-visible:outline-none"
-                aria-label="Regalien Interior - Home"
+                aria-label="Regalien - Home"
               >
                 <div className="flex items-baseline gap-2 leading-none">
                   <span className="font-serif text-2xl sm:text-[27px] font-bold tracking-tight text-[#111111] group-hover:text-[#D9541E] transition-colors leading-none">
                     REGALIEN
-                  </span>
-                  <span className="hidden sm:inline-block text-[10px] tracking-[0.2em] uppercase font-mono font-semibold text-[#D9541E]">
-                    INTERIOR
                   </span>
                 </div>
                 <span className="text-[9px] uppercase font-mono tracking-widest text-[#111111]/50 mt-1">
